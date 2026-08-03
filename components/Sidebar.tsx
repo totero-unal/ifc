@@ -1,8 +1,17 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase"; // O ruta relativa
 import { LayoutDashboard, FileText, Calendar, Settings, LogOut } from "lucide-react";
 
 export default function Sidebar() {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
   return (
     <aside className="w-64 bg-slate-900 text-slate-300 min-h-screen p-4 flex flex-col justify-between">
       <div>
@@ -34,10 +43,13 @@ export default function Sidebar() {
           <Settings size={20} />
           Configuración
         </a>
-        <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 text-rose-400 transition">
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 text-rose-400 transition text-left"
+        >
           <LogOut size={20} />
           Cerrar Sesión
-        </a>
+        </button>
       </div>
     </aside>
   );

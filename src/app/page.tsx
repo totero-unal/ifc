@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import { supabase } from "@/lib/supabase";
@@ -17,9 +18,19 @@ interface FinancialRecord {
 export default function DashboardPage() {
   const [data, setData] = useState<FinancialRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    async function fetchData() {
+    async function checkAuthAndFetchData() {
+      // 1. Verificar sesión activa
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      // 2. Cargar datos si está autenticado
       const { data: kpiData, error } = await supabase
         .from("financial_kpis")
         .select("*")
@@ -28,7 +39,6 @@ export default function DashboardPage() {
       if (error) {
         console.error("Error al obtener datos de Supabase:", error);
       } else if (kpiData) {
-        // Convertimos los campos numéricos por si vienen como texto/string desde Postgres
         const formattedData = kpiData.map((item) => ({
           ...item,
           ingresos: Number(item.ingresos),
@@ -41,8 +51,8 @@ export default function DashboardPage() {
       setLoading(false);
     }
 
-    fetchData();
-  }, []);
+    checkAuthAndFetchData();
+  }, [router]);
 
   // Tomamos el último registro cargado para mostrarlo en las tarjetas principales
   const latest = data.length > 0 ? data[data.length - 1] : null;
