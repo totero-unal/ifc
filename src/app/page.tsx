@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { supabase } from "@/lib/supabase";
 import { Card, Metric, Text, AreaChart, BadgeDelta } from "@tremor/react";
+import { LogOut } from "lucide-react";
 
 interface FinancialRecord {
   id: string;
@@ -22,6 +23,10 @@ export default function DashboardPage() {
   const [userRole, setUserRole] = useState<string>("");
   const [userCompany, setUserCompany] = useState<string>("");
   const router = useRouter();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/login"; // Fuerza la recarga completa y limpia la sesión
+  };
 
   useEffect(() => {
     async function checkAuthAndFetchData() {
@@ -79,21 +84,30 @@ export default function DashboardPage() {
 
       <main className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
-          <header className="mb-8 flex justify-between items-start">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                Portal de Inteligencia Financiera Continua
-              </h1>
-              <p className="text-slate-500">
-                Dashboard de Control Ejecutivo
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
-                {userRole === "admin" ? "Modo Administrador" : `Empresa: ${userCompany}`}
-              </span>
-            </div>
-          </header>
+        <header className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Portal de Inteligencia Financiera Continua
+            </h1>
+            <p className="text-slate-500">
+              Dashboard de Control Ejecutivo
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="inline-block px-3 py-1.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
+              {userRole === "admin" ? "Modo Administrador" : `Empresa: ${userCompany}`}
+            </span>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-semibold rounded-lg transition"
+            >
+              <LogOut size={14} />
+              Cerrar Sesión
+            </button>
+          </div>
+        </header>
 
           {loading ? (
             <div className="p-12 text-center text-slate-500 font-medium">
