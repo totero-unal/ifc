@@ -2,30 +2,35 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/Sidebar"; // O ruta relativa
-import { supabase } from "@/lib/supabase";  // O ruta relativa
+import Sidebar from "@/components/Sidebar";
+import { supabase } from "@/lib/supabase";
 import { ArrowLeft } from "lucide-react";
 
 export default function AdminPage() {
+  const [companyKey, setCompanyKey] = useState("");
   const [month, setMonth] = useState("");
   const [ingresos, setIngresos] = useState("");
   const [ebitda, setEbitda] = useState("");
   const [ktno, setKtno] = useState("");
   const [cicloCaja, setCicloCaja] = useState("");
-  
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const router = useRouter();
 
-  // Proteger la ruta si no hay sesión
+  // Proteger la ruta: solo administradores
   useEffect(() => {
-    async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+    async function checkAdmin() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         router.push("/login");
+        return;
+      }
+      if (user.user_metadata?.role !== "admin") {
+        router.push("/"); // Redirige al dashboard si es cliente
       }
     }
-    checkAuth();
+    checkAdmin();
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,6 +40,7 @@ export default function AdminPage() {
 
     const { error } = await supabase.from("financial_kpis").insert([
       {
+        company_key: companyKey.trim().toLowerCase(),
         month,
         ingresos: parseFloat(ingresos),
         ebitda: parseFloat(ebitda),
@@ -46,10 +52,10 @@ export default function AdminPage() {
     setLoading(false);
 
     if (error) {
-      setMessage({ type: "error", text: "Error al guardar el registro." });
+      console.error("Error al guardar:", error);
+      setMessage({ type: "error", text: "Error al guardar el registro en la base de datos." });
     } else {
-      setMessage({ type: "success", text: "¡Registro financiero agregado con éxito!" });
-      // Limpiar formulario
+      setMessage({ type: "success", text: `¡Registro guardado exitosamente para "${companyKey}"!` });
       setMonth("");
       setIngresos("");
       setEbitda("");
@@ -73,7 +79,7 @@ export default function AdminPage() {
 
           <header className="mb-8">
             <h1 className="text-2xl font-bold text-slate-900">Cargar Métricas Financieras</h1>
-            <p className="text-slate-500">Ingresa los valores del periodo para actualizar el dashboard ejecutivo.</p>
+            <p className="text-slate-500">Ingresa la llave de la empresa y las cifras del periodo.</p>
           </header>
 
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
@@ -91,18 +97,32 @@ export default function AdminPage() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Mes del Periodo</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Llave / ID de la Empresa
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="ej. Jul, Ago, Sep"
-                  value={month}
-                  onChange={(e) => setMonth(e.target.value)}
+                  placeholder="ej. empresa-1, acme-corp"
+                  value={companyKey}
+                  onChange={(e) => setCompanyKey(e.target.value)}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Mes del Periodo</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="ej. Jul, Ago, Sep"
+                    value={month}
+                    onChange={(e) => setMonth(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Ingresos (Millones)</label>
                   <input
@@ -142,7 +162,7 @@ export default function AdminPage() {
                   />
                 </div>
 
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Ciclo de Caja (Días)</label>
                   <input
                     type="number"

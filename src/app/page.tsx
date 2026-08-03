@@ -1,13 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { supabase } from "@/lib/supabase";
 import { Card, Metric, Text, AreaChart, BadgeDelta } from "@tremor/react";
 
 interface FinancialRecord {
   id: string;
+  company_key: string;
   month: string;
   ingresos: number;
   ebitda: number;
@@ -18,26 +19,42 @@ interface FinancialRecord {
 export default function DashboardPage() {
   const [data, setData] = useState<FinancialRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>("");
+  const [userCompany, setUserCompany] = useState<string>("");
   const router = useRouter();
 
   useEffect(() => {
     async function checkAuthAndFetchData() {
-      // 1. Verificar sesión activa
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      // 1. Obtener usuario activo
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
         router.push("/login");
         return;
       }
 
-      // 2. Cargar datos si está autenticado
-      const { data: kpiData, error } = await supabase
-        .from("financial_kpis")
-        .select("*")
-        .order("created_at", { ascending: true });
+      const role = user.user_metadata?.role || "client";
+      const companyKey = user.user_metadata?.company_key || "";
+
+      setUserRole(role);
+      setUserCompany(companyKey);
+
+      // 2. Construir la consulta
+      let query = supabase.from("financial_kpis").select("*");
+
+      // Si no es admin, filtramos estrictamente por la llave de su empresa
+      if (role !== "admin") {
+        if (!companyKey) {
+          setLoading(false);
+          return;
+        }
+        query = query.eq("company_key", companyKey);
+      }
+
+      const { data: kpiData, error } = await query.order("created_at", { ascending: true });
 
       if (error) {
-        console.error("Error al obtener datos de Supabase:", error);
+        console.error("Error al consultar datos:", error);
       } else if (kpiData) {
         const formattedData = kpiData.map((item) => ({
           ...item,
@@ -54,7 +71,6 @@ export default function DashboardPage() {
     checkAuthAndFetchData();
   }, [router]);
 
-  // Tomamos el último registro cargado para mostrarlo en las tarjetas principales
   const latest = data.length > 0 ? data[data.length - 1] : null;
 
   return (
@@ -63,22 +79,33 @@ export default function DashboardPage() {
 
       <main className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
-          <header className="mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">
-              Portal de Inteligencia Financiera Continua
-            </h1>
-            <p className="text-slate-500">
-              Dashboard de Control Ejecutivo — Conectado a Supabase
-            </p>
+          <header className="mb-8 flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">
+                Portal de Inteligencia Financiera Continua
+              </h1>
+              <p className="text-slate-500">
+                Dashboard de Control Ejecutivo
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
+                {userRole === "admin" ? "Modo Administrador" : `Empresa: ${userCompany}`}
+              </span>
+            </div>
           </header>
 
           {loading ? (
             <div className="p-12 text-center text-slate-500 font-medium">
               Cargando datos financieros desde la nube...
             </div>
+          ) : data.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-xl border border-slate-200 text-slate-500">
+              No hay registros financieros disponibles para este perfil.
+            </div>
           ) : (
             <>
-              {/* Tarjetas de KPIs con Datos de Supabase */}
+              {/* Tarjetas de KPIs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <Card decoration="top" decorationColor="indigo">
                   <Text>Ingresos del Periodo</Text>
@@ -127,10 +154,10 @@ export default function DashboardPage() {
                 </Card>
               </div>
 
-              {/* Gráfica Dinámica cargada desde la Base de Datos */}
+              {/* Gráfica Dinámica */}
               <Card>
                 <Text className="font-medium text-slate-700 mb-2">
-                  Evolución de Ingresos vs. EBITDA (Datos en tiempo real)
+                  Evolución de Ingresos vs. EBITDA
                 </Text>
                 <AreaChart
                   className="h-72 mt-4"

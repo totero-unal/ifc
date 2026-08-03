@@ -1,11 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase"; // O ruta relativa
+import { supabase } from "@/lib/supabase";
 import { LayoutDashboard, FileText, Calendar, Settings, LogOut, PlusCircle } from "lucide-react";
 
 export default function Sidebar() {
   const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    async function checkUserRole() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.user_metadata?.role === "admin") {
+        setIsAdmin(true);
+      }
+    }
+    checkUserRole();
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -23,31 +35,22 @@ export default function Sidebar() {
         </div>
 
         <nav className="space-y-1">
-          <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-600 text-white font-medium">
+          <a href="/" className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-600 text-white font-medium">
             <LayoutDashboard size={20} />
             Dashboard
           </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition">
-            <FileText size={20} />
-            Informes Mensuales
-          </a>
-          <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition">
-            <Calendar size={20} />
-            Comité Trimestral
-          </a>
-          <a href="/admin" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition">
-            <PlusCircle size={20} />
-            Cargar Datos
-          </a>
+
+          {isAdmin && (
+            <a href="/admin" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition">
+              <PlusCircle size={20} />
+              Cargar Datos
+            </a>
+          )}
         </nav>
       </div>
 
       <div className="border-t border-slate-800 pt-4 space-y-1">
-        <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition">
-          <Settings size={20} />
-          Configuración
-        </a>
-        <button 
+        <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-800 text-rose-400 transition text-left"
         >
